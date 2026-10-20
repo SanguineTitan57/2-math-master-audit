@@ -37,7 +37,13 @@ library MathMasters {
         assembly {
             // Equivalent to `require(y == 0 || x <= type(uint256).max / y)`.
             if mul(y, gt(x, div(not(0), y))) {
-                mstore(0x40, 0xbac65e5b) // `MathMasters__MulWadFailed()`.
+                // if big num / y > x -> 0
+                // if big num / y < x -> 1
+                // Memory [0x40: 0x000000...bac65e5b] 32 bytes
+                // @audit - low: free memory pointer was being overrriden, reverting with a blank message
+                // @audit - wrong function selector
+                mstore(0x00, 0xbac65e5b) // `MathMasters__MulWadFailed()`.
+                // 0x1c is the number 28
                 revert(0x1c, 0x04)
             }
             z := div(mul(x, y), WAD)
@@ -49,11 +55,29 @@ library MathMasters {
         /// @solidity memory-safe-assembly
         assembly {
             // Equivalent to `require(y == 0 || x <= type(uint256).max / y)`.
-            if mul(y, gt(x, or(div(not(0), y), x))) {
+            if mul(y, 
+                gt(x, 
+                    div(
+                        not(0), y // 0xFFFF / y
+                    )
+                )
+            ) {
+                // @audit - low: free memory pointer was being overrriden, reverting with a blank message
+                // @audit - wrong function selector
                 mstore(0x40, 0xbac65e5b) // `MathMasters__MulWadFailed()`.
                 revert(0x1c, 0x04)
             }
-            z := add(iszero(iszero(mod(mul(x, y), WAD))), div(mul(x, y), WAD))
+            z := add(
+                iszero(
+                    iszero(
+                        mod(
+                            mul(x, y), WAD
+                        )
+                    )
+                ), 
+                div(
+                    mul(x, y), WAD)
+                )
         }
     }
 
